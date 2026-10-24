@@ -142,7 +142,7 @@ Devuelve ÚNICAMENTE un objeto JSON válido (sin bloques markdown) con esta estr
 }
 Nota: Si NO es sustantivo, pon "declension": null. Si NO es verbo, pon "conjugation": null.`;
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
