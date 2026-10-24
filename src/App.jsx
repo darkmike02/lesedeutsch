@@ -7,13 +7,12 @@ import {
 import { INITIAL_READINGS, INITIAL_DICTIONARY } from './data/readings';
 
 export default function App() {
-  // Navegación y vista actual
   const [activeTab, setActiveTab] = useState('readings');
   const [selectedReading, setSelectedReading] = useState(null);
   const [selectedWord, setSelectedWord] = useState(null);
   const [showTranslation, setShowTranslation] = useState(false);
 
-  // Persistencia del progreso del usuario
+  // Progreso y persistencia local
   const [xp, setXp] = useState(() => Number(localStorage.getItem('ld_xp')) || 120);
   const [streak, setStreak] = useState(() => Number(localStorage.getItem('ld_streak')) || 3);
   const [completedReadings, setCompletedReadings] = useState(() => JSON.parse(localStorage.getItem('ld_completed')) || []);
@@ -21,31 +20,25 @@ export default function App() {
   const [readings, setReadings] = useState(() => JSON.parse(localStorage.getItem('ld_readings')) || INITIAL_READINGS);
   const [dictionary, setDictionary] = useState(() => JSON.parse(localStorage.getItem('ld_dict')) || INITIAL_DICTIONARY);
 
-  // Configuración de API Key para IA en vivo
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem('ld_gemini_key') || '');
-  const [showSettings, setShowSettings] = useState(false);
-
-  // Estados de Generación IA y Análisis
+  // Estados de IA y UI
   const [selectedLevelFilter, setSelectedLevelFilter] = useState('ALL');
   const [genLevel, setGenLevel] = useState('A2');
   const [genTopic, setGenTopic] = useState('');
   const [isGeneratingReading, setIsGeneratingReading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Estados de Flashcards
+  // Flashcards
   const [flashcardIndex, setFlashcardIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
 
-  // Guardar automáticamente en el celular/laptop
   useEffect(() => { localStorage.setItem('ld_xp', xp); }, [xp]);
   useEffect(() => { localStorage.setItem('ld_streak', streak); }, [streak]);
   useEffect(() => { localStorage.setItem('ld_completed', JSON.stringify(completedReadings)); }, [completedReadings]);
   useEffect(() => { localStorage.setItem('ld_saved_words', JSON.stringify(savedWords)); }, [savedWords]);
   useEffect(() => { localStorage.setItem('ld_readings', JSON.stringify(readings)); }, [readings]);
   useEffect(() => { localStorage.setItem('ld_dict', JSON.stringify(dictionary)); }, [dictionary]);
-  useEffect(() => { localStorage.setItem('ld_gemini_key', apiKey); }, [apiKey]);
 
-  // Pronunciación con voz neuronal/natural en alemán
+  // Pronunciación neuronal en alemán
   const speakGerman = (text) => {
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
@@ -85,7 +78,7 @@ export default function App() {
     return 'bg-indigo-600 text-white';
   };
 
-  // 1. Analizar cualquier palabra usando el servidor seguro de Vercel (/api/generate)
+  // 1. Analizar palabra mediante el servidor seguro en Vercel
   const handleWordClick = async (rawWord) => {
     const cleanKey = rawWord.toLowerCase().replace(/[.,!?;:"()«»„“]/g, '').trim();
     if (!cleanKey) return;
@@ -98,37 +91,23 @@ export default function App() {
       return;
     }
 
-    if (!apiKey) {
-      setSelectedWord({
-        word: rawWord.replace(/[.,!?;:"()]/g, ''),
-        lemma: rawWord.replace(/[.,!?;:"()]/g, ''),
-        type: 'Requiere IA Activa',
-        gender: 'indeterminado',
-        meaning: 'Configura tu API Key gratuita arriba a la derecha (⚙️) para analizar cualquier palabra.',
-        contextNote: 'Una vez activada la llave, verás aquí su declinación, género o conjugación exacta.',
-        example: selectedReading?.content.split('.')[0] + '.',
-        exampleTranslation: ''
-      });
-      return;
-    }
-
     setSelectedWord({ word: rawWord, analyzing: true });
 
     try {
       const prompt = `Analiza la palabra alemana "${rawWord}" dentro del contexto de esta oración: "${selectedReading.content}".
-Devuelve ÚNICAMENTE un objeto JSON válido (sin bloques markdown) con esta estructura exacta:
+Devuelve ÚNICAMENTE un objeto JSON válido (sin bloques markdown ni formato extra) con esta estructura exacta:
 {
   "word": "palabra limpia",
-  "lemma": "forma base con artículo si es sustantivo (ej. der Tisch, die Lampe, das Buch) o infinitivo si es verbo",
+  "lemma": "forma base con artículo si es sustantivo (ej. der Tisch) o infinitivo si es verbo",
   "type": "Sustantivo | Verbo | Adjetivo | Adverbio | Preposición",
   "gender": "masculino | femenino | neutro | verbo | otro",
   "article": "der | die | das | ''",
   "plural": "forma plural si es sustantivo o ''",
   "meaning": "traducción clara al español",
-  "contextNote": "breve explicación de en qué caso (Nominativ, Akkusativ, Dativ, Genitiv) o tiempo verbal está en esta oración",
+  "contextNote": "breve explicación de en qué caso o tiempo verbal está en esta oración",
   "declension": { "nominativ": "...", "akkusativ": "...", "dativ": "...", "genitiv": "..." },
   "conjugation": { "ich": "...", "du": "...", "er_sie_es": "...", "wir": "...", "ihr": "...", "sie_Sie": "...", "praeteritum": "...", "perfekt": "..." },
-  "example": "una oración de ejemplo sencilla en alemán",
+  "example": "oración de ejemplo sencilla en alemán",
   "exampleTranslation": "traducción del ejemplo al español"
 }
 Nota: Si NO es sustantivo, pon "declension": null. Si NO es verbo, pon "conjugation": null.`;
@@ -136,29 +115,28 @@ Nota: Si NO es sustantivo, pon "declension": null. Si NO es verbo, pon "conjugat
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, apiKey })
+        body: JSON.stringify({ prompt })
       });
 
       const data = await response.json();
       if (data.error) throw new Error(data.error);
 
-      const parsed = JSON.parse(data.candidates[0].content.parts[0].text);
+      // Limpieza robusta por si la IA devuelve bloques markdown de código
+      let textContent = data.candidates[0].content.parts[0].text;
+      textContent = textContent.replace(/```json/g, '').replace(/```/g, '').trim();
+
+      const parsed = JSON.parse(textContent);
       setDictionary(prev => ({ ...prev, [cleanKey]: parsed }));
       setSelectedWord(parsed);
       setXp(prev => prev + 2);
     } catch (err) {
-      setErrorMsg('No se pudo analizar la palabra. Verifica tu API Key en el ícono de engrane (⚙️).');
+      setErrorMsg('No se pudo analizar la palabra. Verifica que la variable GEMINI_API_KEY esté configurada en Vercel.');
       setSelectedWord(null);
     }
   };
 
-  // 2. Generar lectura automática a través de la API segura
+  // 2. Generar lectura automática mediante el servidor seguro en Vercel
   const handleGenerateAIReading = async () => {
-    if (!apiKey) {
-      setShowSettings(true);
-      return;
-    }
-
     setIsGeneratingReading(true);
     setErrorMsg('');
 
@@ -176,7 +154,7 @@ Nota: Si NO es sustantivo, pon "declension": null. Si NO es verbo, pon "conjugat
     try {
       const prompt = `Escribe una lectura original en alemán de nivel MCER ${genLevel} sobre el tema: "${chosenTopic}".
 Requisitos gramaticales: ${levelInstructions[genLevel]}.
-Devuelve ÚNICAMENTE un objeto JSON válido con este formato:
+Devuelve ÚNICAMENTE un objeto JSON válido (sin bloques markdown) con este formato exacto:
 {
   "title": "Título atractivo en alemán",
   "category": "Categoría en español",
@@ -188,13 +166,16 @@ Devuelve ÚNICAMENTE un objeto JSON válido con este formato:
       const response = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, apiKey })
+        body: JSON.stringify({ prompt })
       });
 
       const data = await response.json();
       if (data.error) throw new Error(data.error);
 
-      const parsed = JSON.parse(data.candidates[0].content.parts[0].text);
+      let textContent = data.candidates[0].content.parts[0].text;
+      textContent = textContent.replace(/```json/g, '').replace(/```/g, '').trim();
+
+      const parsed = JSON.parse(textContent);
       const xpMap = { 'A1': 35, 'A2': 50, 'B1': 75, 'B2': 100, 'C1': 140 };
 
       const newReading = {
@@ -214,7 +195,7 @@ Devuelve ÚNICAMENTE un objeto JSON válido con este formato:
       setSelectedWord(null);
       setShowTranslation(false);
     } catch (err) {
-      setErrorMsg('Error al generar la lectura. Revisa tu API Key en Configuración (⚙️).');
+      setErrorMsg('Error al generar la lectura. Asegúrate de haber guardado la GEMINI_API_KEY en las Environment Variables de Vercel.');
     } finally {
       setIsGeneratingReading(false);
     }
@@ -269,57 +250,13 @@ Devuelve ÚNICAMENTE un objeto JSON válido con este formato:
           <span className="flex items-center gap-1 bg-indigo-700/90 px-2.5 py-1 rounded-full text-xs font-bold">
             <Award className="w-3.5 h-3.5 text-yellow-300" /> {xp} XP
           </span>
-          <button 
-            onClick={() => setShowSettings(!showSettings)}
-            className={`p-2 rounded-full transition-colors cursor-pointer ${apiKey ? 'bg-indigo-700 text-emerald-300' : 'bg-amber-500 text-white animate-pulse'}`}
-            title="Configurar IA"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
         </div>
       </header>
-
-      {/* CONFIGURACIÓN API KEY */}
-      {showSettings && (
-        <div className="max-w-2xl mx-auto px-4 pt-4">
-          <div className="bg-white p-5 rounded-2xl border-2 border-indigo-200 shadow-lg space-y-3">
-            <div className="flex justify-between items-center">
-              <h3 className="font-bold text-indigo-950 flex items-center gap-2">
-                <Key className="w-4 h-4 text-indigo-600" /> Google Gemini API Key
-              </h3>
-              <button onClick={() => setShowSettings(false)} className="text-xs text-slate-400 font-bold">Cerrar ✕</button>
-            </div>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Pega tu clave gratuita de <strong>Google AI Studio</strong> para generar lecturas ilimitadas y analizar palabras en tiempo real.
-            </p>
-            <div className="flex gap-2">
-              <input 
-                type="password"
-                placeholder="AIzaSy..."
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value.trim())}
-                className="flex-1 p-2.5 text-sm border border-slate-300 rounded-xl focus:outline-indigo-600"
-              />
-              <button 
-                onClick={() => setShowSettings(false)}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold cursor-pointer"
-              >
-                Guardar
-              </button>
-            </div>
-            {apiKey && (
-              <p className="text-xs text-emerald-600 font-semibold flex items-center gap-1">
-                <Check className="w-4 h-4" /> Llave guardada correctamente.
-              </p>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* ERRORES */}
       {errorMsg && (
         <div className="max-w-2xl mx-auto px-4 pt-3">
-          <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-xl text-xs font-medium flex justify-between items-center">
+          <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-xl text-xs font-medium flex justify-between items-center shadow-sm">
             <span>{errorMsg}</span>
             <button onClick={() => setErrorMsg('')} className="font-bold ml-2">✕</button>
           </div>
