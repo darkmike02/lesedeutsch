@@ -1,4 +1,4 @@
-export default async function handler(req, res) {
+﻿export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Falta GEMINI_API_KEY en Vercel (Environment Variables)' });
   }
   if (!prompt) {
-    return res.status(400).json({ error: 'Falta el prompt en la petición' });
+    return res.status(400).json({ error: 'Falta el prompt en la peticion' });
   }
 
   try {
@@ -29,8 +29,8 @@ export default async function handler(req, res) {
 
     const data = await response.json();
     if (!response.ok || data.error) {
-      return res.status(response.status || 500).json({ 
-        error: data.error?.message || 'Error en la respuesta de Google API' 
+      return res.status(response.status || 500).json({
+        error: data.error?.message || 'Error en la respuesta de Google API'
       });
     }
 
