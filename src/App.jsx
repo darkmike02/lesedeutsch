@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   BookOpen, Award, BarChart2, Volume2, CheckCircle, Flame, 
-  ArrowRight, Sparkles, Bookmark, Settings, RefreshCw, 
-  Key, Check, Layers, Eye
+  ArrowRight, Sparkles, Bookmark, RefreshCw, Layers, Eye
 } from 'lucide-react';
 import { INITIAL_READINGS, INITIAL_DICTIONARY } from './data/readings';
 
@@ -78,7 +77,7 @@ export default function App() {
     return 'bg-indigo-600 text-white';
   };
 
-  // 1. Analizar palabra mediante el servidor seguro en Vercel
+  // 1. Analizar palabra mediante el servidor seguro en Vercel (/api/generate)
   const handleWordClick = async (rawWord) => {
     const cleanKey = rawWord.toLowerCase().replace(/[.,!?;:"()«»„“]/g, '').trim();
     if (!cleanKey) return;
@@ -119,10 +118,12 @@ Nota: Si NO es sustantivo, pon "declension": null. Si NO es verbo, pon "conjugat
       });
 
       const data = await response.json();
-      if (data.error) throw new Error(data.error);
+      if (!response.ok || data.error) {
+        throw new Error(data.error || `HTTP ${response.status}`);
+      }
 
-      // Limpieza robusta por si la IA devuelve bloques markdown de código
-      let textContent = data.candidates[0].content.parts[0].text;
+      let textContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!textContent) throw new Error('Respuesta vacía de Gemini');
       textContent = textContent.replace(/```json/g, '').replace(/```/g, '').trim();
 
       const parsed = JSON.parse(textContent);
@@ -130,12 +131,12 @@ Nota: Si NO es sustantivo, pon "declension": null. Si NO es verbo, pon "conjugat
       setSelectedWord(parsed);
       setXp(prev => prev + 2);
     } catch (err) {
-      setErrorMsg('No se pudo analizar la palabra. Verifica que la variable GEMINI_API_KEY esté configurada en Vercel.');
+      setErrorMsg(`Error API: ${err.message}`);
       setSelectedWord(null);
     }
   };
 
-  // 2. Generar lectura automática mediante el servidor seguro en Vercel
+  // 2. Generar lectura automática mediante el servidor seguro en Vercel (/api/generate)
   const handleGenerateAIReading = async () => {
     setIsGeneratingReading(true);
     setErrorMsg('');
@@ -170,9 +171,12 @@ Devuelve ÚNICAMENTE un objeto JSON válido (sin bloques markdown) con este form
       });
 
       const data = await response.json();
-      if (data.error) throw new Error(data.error);
+      if (!response.ok || data.error) {
+        throw new Error(data.error || `HTTP ${response.status}`);
+      }
 
-      let textContent = data.candidates[0].content.parts[0].text;
+      let textContent = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!textContent) throw new Error('Respuesta vacía de Gemini');
       textContent = textContent.replace(/```json/g, '').replace(/```/g, '').trim();
 
       const parsed = JSON.parse(textContent);
@@ -195,7 +199,7 @@ Devuelve ÚNICAMENTE un objeto JSON válido (sin bloques markdown) con este form
       setSelectedWord(null);
       setShowTranslation(false);
     } catch (err) {
-      setErrorMsg('Error al generar la lectura. Asegúrate de haber guardado la GEMINI_API_KEY en las Environment Variables de Vercel.');
+      setErrorMsg(`Error API: ${err.message}`);
     } finally {
       setIsGeneratingReading(false);
     }
@@ -397,196 +401,4 @@ Devuelve ÚNICAMENTE un objeto JSON válido (sin bloques markdown) con este form
                           <p className="text-xs font-extrabold uppercase tracking-wider mb-2 opacity-80">Conjugación:</p>
                           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs bg-white/85 p-3 rounded-xl border border-current/10">
                             <div><span className="text-slate-500">ich:</span> <strong>{selectedWord.conjugation.ich}</strong></div>
-                            <div><span className="text-slate-500">du:</span> <strong>{selectedWord.conjugation.du}</strong></div>
-                            <div><span className="text-slate-500">er/sie/es:</span> <strong>{selectedWord.conjugation.er_sie_es}</strong></div>
-                            <div><span className="text-slate-500">wir:</span> <strong>{selectedWord.conjugation.wir}</strong></div>
-                            <div><span className="text-slate-500">ihr:</span> <strong>{selectedWord.conjugation.ihr}</strong></div>
-                            <div><span className="text-slate-500">sie/Sie:</span> <strong>{selectedWord.conjugation.sie_Sie}</strong></div>
-                          </div>
-                        </div>
-                      )}
-
-                      {selectedWord.example && (
-                        <div className="mt-4 pt-3 border-t border-current/10 text-xs space-y-1">
-                          <p className="font-bold">Ejemplo: <span className="italic font-semibold">"{selectedWord.example}"</span></p>
-                          {selectedWord.exampleTranslation && <p className="opacity-75">{selectedWord.exampleTranslation}</p>}
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-              )}
-
-              <button
-                onClick={() => completeReading(selectedReading.id, selectedReading.xp)}
-                disabled={completedReadings.includes(selectedReading.id)}
-                className={`mt-6 w-full font-bold py-3.5 rounded-xl transition-all shadow-md flex justify-center items-center gap-2 ${
-                  completedReadings.includes(selectedReading.id) ? 'bg-emerald-100 text-emerald-700 cursor-default' : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'
-                }`}
-              >
-                <CheckCircle className="w-5 h-5" /> 
-                {completedReadings.includes(selectedReading.id) ? '¡Lectura Completada!' : `Terminar lectura (+${selectedReading.xp} XP)`}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div>
-            {activeTab === 'readings' && (
-              <div className="space-y-5">
-                <div className="bg-gradient-to-br from-indigo-600 to-violet-700 text-white p-5 rounded-2xl shadow-md">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Sparkles className="w-5 h-5 text-amber-300" />
-                    <h2 className="font-extrabold text-base">Generador Automático de Lecturas</h2>
-                  </div>
-                  <p className="text-xs text-indigo-100 mb-4">Elige tu nivel y escribe un tema para crear una lectura nueva.</p>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <select 
-                      value={genLevel}
-                      onChange={e => setGenLevel(e.target.value)}
-                      className="bg-white/15 text-white font-bold text-xs px-3 py-2.5 rounded-xl border border-white/25 focus:outline-none"
-                    >
-                      <option value="A1" className="text-slate-900">Nivel A1</option>
-                      <option value="A2" className="text-slate-900">Nivel A2</option>
-                      <option value="B1" className="text-slate-900">Nivel B1</option>
-                      <option value="B2" className="text-slate-900">Nivel B2</option>
-                      <option value="C1" className="text-slate-900">Nivel C1</option>
-                    </select>
-                    <input 
-                      type="text"
-                      placeholder="Tema opcional..."
-                      value={genTopic}
-                      onChange={e => setGenTopic(e.target.value)}
-                      className="flex-1 bg-white/15 placeholder-indigo-200 text-white text-xs px-3.5 py-2.5 rounded-xl border border-white/25 focus:outline-none"
-                    />
-                    <button
-                      onClick={handleGenerateAIReading}
-                      disabled={isGeneratingReading}
-                      className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer disabled:opacity-60"
-                    >
-                      {isGeneratingReading ? <><RefreshCw className="w-4 h-4 animate-spin" /> Creando...</> : <><Sparkles className="w-4 h-4" /> Generar</>}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex gap-1.5 overflow-x-auto pb-1">
-                    {['ALL', 'A1', 'A2', 'B1', 'B2', 'C1'].map(lvl => (
-                      <button
-                        key={lvl}
-                        onClick={() => setSelectedLevelFilter(lvl)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
-                          selectedLevelFilter === lvl ? 'bg-indigo-600 text-white shadow-xs' : 'bg-white text-slate-600 border border-slate-200'
-                        }`}
-                      >
-                        {lvl === 'ALL' ? 'Todos' : lvl}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  {filteredReadings.map((reading) => (
-                    <div 
-                      key={reading.id}
-                      onClick={() => { setSelectedReading(reading); setSelectedWord(null); setShowTranslation(false); }}
-                      className="bg-white p-5 rounded-2xl shadow-xs border border-slate-200 hover:border-indigo-400 transition-all cursor-pointer flex justify-between items-center group"
-                    >
-                      <div className="pr-3">
-                        <div className="flex gap-2 items-center mb-1.5 flex-wrap">
-                          <span className="text-xs px-2.5 py-0.5 rounded-full font-extrabold bg-indigo-50 text-indigo-700">
-                            {reading.level}
-                          </span>
-                          <span className="text-xs text-slate-400 font-medium">{reading.category} • {reading.readTime} • +{reading.xp} XP</span>
-                          {completedReadings.includes(reading.id) && (
-                            <span className="text-xs bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full font-bold">✓ Leída</span>
-                          )}
-                        </div>
-                        <h3 className="font-bold text-lg text-slate-900 group-hover:text-indigo-600 transition-colors">{reading.title}</h3>
-                        <p className="text-xs text-slate-500 line-clamp-1 mt-1">{reading.content}</p>
-                      </div>
-                      <div className="bg-indigo-50 p-3 rounded-xl text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white transition-all shrink-0">
-                        <ArrowRight className="w-5 h-5" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {activeTab === 'vocab' && (
-              <div className="space-y-6">
-                <div className="flex justify-between items-center">
-                  <h2 className="text-xl font-black text-slate-900">Flashcards de Vocabulario</h2>
-                  <span className="text-xs bg-indigo-100 text-indigo-700 px-3 py-1 rounded-full font-bold">{savedWords.length} guardadas</span>
-                </div>
-
-                {savedWords.length === 0 ? (
-                  <div className="bg-white p-8 rounded-2xl border border-slate-200 text-center space-y-2">
-                    <Bookmark className="w-10 h-10 text-slate-300 mx-auto" />
-                    <p className="font-bold text-slate-700">Aún no has guardado palabras</p>
-                  </div>
-                ) : (
-                  <>
-                    <div 
-                      onClick={() => setIsFlipped(!isFlipped)}
-                      className={`p-8 rounded-2xl border-2 shadow-sm cursor-pointer transition-all text-center min-h-[210px] flex flex-col justify-center items-center ${
-                        isFlipped ? 'bg-indigo-600 text-white border-indigo-700' : 'bg-white text-slate-900 border-indigo-200'
-                      }`}
-                    >
-                      <span className="text-[11px] uppercase tracking-wider opacity-60 font-bold mb-2">Tarjeta {flashcardIndex + 1} de {savedWords.length}</span>
-                      {!isFlipped ? (
-                        <h3 className="text-3xl font-black">{savedWords[flashcardIndex]?.lemma}</h3>
-                      ) : (
-                        <h3 className="text-2xl font-extrabold text-amber-300">{savedWords[flashcardIndex]?.meaning}</h3>
-                      )}
-                    </div>
-
-                    <div className="flex justify-between gap-3">
-                      <button onClick={() => { setIsFlipped(false); setFlashcardIndex((prev) => (prev - 1 + savedWords.length) % savedWords.length); }} className="flex-1 bg-white border border-slate-200 py-2.5 rounded-xl text-xs font-bold cursor-pointer">Anterior</button>
-                      <button onClick={() => speakGerman(savedWords[flashcardIndex]?.lemma)} className="bg-indigo-50 text-indigo-700 px-4 py-2.5 rounded-xl text-xs font-bold cursor-pointer"><Volume2 className="w-4 h-4" /></button>
-                      <button onClick={() => { setIsFlipped(false); setFlashcardIndex((prev) => (prev + 1) % savedWords.length); }} className="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-xs font-bold cursor-pointer">Siguiente</button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-
-            {activeTab === 'dashboard' && (
-              <div className="space-y-5">
-                <h2 className="text-xl font-black text-slate-900">Dashboard de Progreso</h2>
-                <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="font-extrabold text-indigo-600">Nivel {userLevelNumber}</span>
-                    <span className="text-xs font-bold text-slate-400">{levelProgress} / 100 XP</span>
-                  </div>
-                  <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden">
-                    <div className="bg-indigo-600 h-full rounded-full transition-all" style={{ width: `${levelProgress}%` }}></div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-white p-4 rounded-2xl border border-slate-200 text-center"><p className="text-2xl font-black text-indigo-600">{xp}</p><p className="text-[11px] font-semibold text-slate-500">XP</p></div>
-                  <div className="bg-white p-4 rounded-2xl border border-slate-200 text-center"><p className="text-2xl font-black text-emerald-600">{completedReadings.length}</p><p className="text-[11px] font-semibold text-slate-500">Leídos</p></div>
-                  <div className="bg-white p-4 rounded-2xl border border-slate-200 text-center"><p className="text-2xl font-black text-amber-500">{Object.keys(dictionary).length}</p><p className="text-[11px] font-semibold text-slate-500">Palabras</p></div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-      </main>
-
-      {/* MENÚ INFERIOR */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 py-2.5 px-6 flex justify-around shadow-lg z-50">
-        <button onClick={() => { setActiveTab('readings'); setSelectedReading(null); }} className={`flex flex-col items-center gap-1 cursor-pointer ${activeTab === 'readings' ? 'text-indigo-600 font-bold' : 'text-slate-400'}`}>
-          <BookOpen className="w-5 h-5" /><span className="text-[11px]">Lecturas</span>
-        </button>
-        <button onClick={() => { setActiveTab('vocab'); setSelectedReading(null); }} className={`flex flex-col items-center gap-1 cursor-pointer ${activeTab === 'vocab' ? 'text-indigo-600 font-bold' : 'text-slate-400'}`}>
-          <Layers className="w-5 h-5" /><span className="text-[11px]">Vocabulario</span>
-        </button>
-        <button onClick={() => { setActiveTab('dashboard'); setSelectedReading(null); }} className={`flex flex-col items-center gap-1 cursor-pointer ${activeTab === 'dashboard' ? 'text-indigo-600 font-bold' : 'text-slate-400'}`}>
-          <BarChart2 className="w-5 h-5" /><span className="text-[11px]">Dashboard</span>
-        </button>
-      </nav>
-    </div>
-  );
-}
+                            <div><span class
