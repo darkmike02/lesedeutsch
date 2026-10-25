@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { BookOpen, Award, BarChart2, Volume2, CheckCircle, Flame, ArrowRight, Sparkles, Bookmark, RefreshCw, Layers, Eye, Settings, Key } from 'lucide-react';
 import { INITIAL_READINGS, INITIAL_DICTIONARY } from './data/readings';
 
@@ -46,7 +46,7 @@ export default function App() {
     }
   };
 
-  // Llamada híbrida: intenta usar /api/generate (Vercel) y si está en local usa la API directa
+  // Llamada hÃ­brida: intenta usar /api/generate (Vercel) y si estÃ¡ en local usa la API directa
   const callGemini = async (prompt) => {
     let response = await fetch('/api/generate', {
       method: 'POST',
@@ -55,7 +55,7 @@ export default function App() {
     });
 
     if (response.status === 404 && apiKey) {
-      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+      response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -71,12 +71,12 @@ export default function App() {
     }
 
     let txt = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!txt) throw new Error('Respuesta vacía de la IA');
+    if (!txt) throw new Error('Respuesta vacÃ­a de la IA');
     return JSON.parse(txt.replace(/```json/g, '').replace(/```/g, '').trim());
   };
 
   const handleWordClick = async (rawWord) => {
-    const cleanKey = rawWord.toLowerCase().replace(/[.,!?;:"()«»„“]/g, '').trim();
+    const cleanKey = rawWord.toLowerCase().replace(/[.,!?;:"()Â«Â»â€žâ€œ]/g, '').trim();
     if (!cleanKey) return;
     speakGerman(cleanKey);
     setErrorMsg('');
@@ -88,7 +88,7 @@ export default function App() {
 
     setSelectedWord({ word: rawWord, analyzing: true });
     try {
-      const prompt = `Analiza la palabra alemana "${rawWord}" en la oración: "${selectedReading.content}". Devuelve SOLO un objeto JSON válido con esta estructura: {"word":"palabra","lemma":"forma base con artículo o infinitivo","type":"Sustantivo|Verbo|Otro","gender":"masculino|femenino|neutro|verbo","plural":"","meaning":"traducción al español","contextNote":"explicación breve del caso o tiempo verbal","declension":{"nominativ":"","akkusativ":"","dativ":"","genitiv":""},"conjugation":{"ich":"","du":"","er_sie_es":"","wir":"","ihr":"","sie_Sie":""},"example":"ejemplo en alemán","exampleTranslation":"traducción"}. Si no es sustantivo pon declension:null, si no es verbo pon conjugation:null.`;
+      const prompt = `Analiza la palabra alemana "${rawWord}" en la oraciÃ³n: "${selectedReading.content}". Devuelve SOLO un objeto JSON vÃ¡lido con esta estructura: {"word":"palabra","lemma":"forma base con artÃ­culo o infinitivo","type":"Sustantivo|Verbo|Otro","gender":"masculino|femenino|neutro|verbo","plural":"","meaning":"traducciÃ³n al espaÃ±ol","contextNote":"explicaciÃ³n breve del caso o tiempo verbal","declension":{"nominativ":"","akkusativ":"","dativ":"","genitiv":""},"conjugation":{"ich":"","du":"","er_sie_es":"","wir":"","ihr":"","sie_Sie":""},"example":"ejemplo en alemÃ¡n","exampleTranslation":"traducciÃ³n"}. Si no es sustantivo pon declension:null, si no es verbo pon conjugation:null.`;
       const parsed = await callGemini(prompt);
       setDictionary(prev => ({ ...prev, [cleanKey]: parsed }));
       setSelectedWord(parsed);
@@ -102,11 +102,11 @@ export default function App() {
   const handleGenerateAIReading = async () => {
     setIsGeneratingReading(true);
     setErrorMsg('');
-    const topics = ['Un misterio en Viena', 'Tecnología del futuro', 'Costumbres en Alemania', 'Senderismo en los Alpes'];
+    const topics = ['Un misterio en Viena', 'TecnologÃ­a del futuro', 'Costumbres en Alemania', 'Senderismo en los Alpes'];
     const chosenTopic = genTopic.trim() || topics[Math.floor(Math.random() * topics.length)];
 
     try {
-      const prompt = `Escribe una lectura en alemán de nivel MCER ${genLevel} sobre "${chosenTopic}" (aprox 85 palabras). Devuelve SOLO un objeto JSON válido: {"title":"Título en alemán","category":"Categoría","readTime":"3 min","content":"Texto en alemán...","translation":"Traducción al español..."}`;
+      const prompt = `Escribe una lectura en alemÃ¡n de nivel MCER ${genLevel} sobre "${chosenTopic}" (aprox 85 palabras). Devuelve SOLO un objeto JSON vÃ¡lido: {"title":"TÃ­tulo en alemÃ¡n","category":"CategorÃ­a","readTime":"3 min","content":"Texto en alemÃ¡n...","translation":"TraducciÃ³n al espaÃ±ol..."}`;
       const parsed = await callGemini(prompt);
       const xpMap = { A1: 35, A2: 50, B1: 75, B2: 100, C1: 140 };
       const newReading = {
@@ -163,7 +163,7 @@ export default function App() {
       {showSettings && (
         <div className="max-w-2xl mx-auto px-4 pt-4">
           <div className="bg-white p-4 rounded-2xl border-2 border-indigo-200 shadow-md space-y-2">
-            <h3 className="font-bold text-sm flex items-center gap-1.5"><Key className="w-4 h-4 text-indigo-600" /> API Key (Opcional si ya está en Vercel)</h3>
+            <h3 className="font-bold text-sm flex items-center gap-1.5"><Key className="w-4 h-4 text-indigo-600" /> API Key (Opcional si ya estÃ¡ en Vercel)</h3>
             <div className="flex gap-2">
               <input type="password" placeholder="AIzaSy..." value={apiKey} onChange={e => setApiKey(e.target.value.trim())} className="flex-1 p-2 text-sm border rounded-xl" />
               <button onClick={() => setShowSettings(false)} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold">Guardar</button>
@@ -176,7 +176,7 @@ export default function App() {
         <div className="max-w-2xl mx-auto px-4 pt-3">
           <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-xl text-xs font-bold flex justify-between">
             <span>{errorMsg}</span>
-            <button onClick={() => setErrorMsg('')}>✕</button>
+            <button onClick={() => setErrorMsg('')}>âœ•</button>
           </div>
         </div>
       )}
@@ -185,7 +185,7 @@ export default function App() {
         {selectedReading ? (
           <div className="bg-white rounded-2xl border p-6 space-y-4">
             <div className="flex justify-between items-center">
-              <button onClick={() => { setSelectedReading(null); setSelectedWord(null); }} className="text-indigo-600 font-bold text-sm cursor-pointer">← Biblioteca</button>
+              <button onClick={() => { setSelectedReading(null); setSelectedWord(null); }} className="text-indigo-600 font-bold text-sm cursor-pointer">â† Biblioteca</button>
               <div className="flex gap-2">
                 <button onClick={() => speakGerman(selectedReading.content)} className="text-xs bg-indigo-50 text-indigo-700 font-bold px-3 py-1.5 rounded-full flex items-center gap-1 cursor-pointer"><Volume2 className="w-3.5 h-3.5" /> Escuchar</button>
                 <span className="bg-indigo-600 text-white text-xs px-3 py-1 rounded-full font-bold">{selectedReading.level}</span>
@@ -202,7 +202,7 @@ export default function App() {
             {selectedReading.translation && (
               <div>
                 <button onClick={() => setShowTranslation(!showTranslation)} className="text-xs font-bold text-slate-500 flex items-center gap-1 cursor-pointer">
-                  <Eye className="w-4 h-4" /> {showTranslation ? 'Ocultar traducción' : 'Ver traducción al español'}
+                  <Eye className="w-4 h-4" /> {showTranslation ? 'Ocultar traducciÃ³n' : 'Ver traducciÃ³n al espaÃ±ol'}
                 </button>
                 {showTranslation && <p className="mt-2 text-sm text-slate-600 bg-slate-100 p-4 rounded-xl italic">{selectedReading.translation}</p>}
               </div>
@@ -216,7 +216,7 @@ export default function App() {
                   <div className="space-y-3">
                     <div className="flex justify-between items-start">
                       <div>
-                        <span className="text-[10px] uppercase font-black bg-indigo-600 text-white px-2 py-0.5 rounded">{selectedWord.type} • {selectedWord.gender}</span>
+                        <span className="text-[10px] uppercase font-black bg-indigo-600 text-white px-2 py-0.5 rounded">{selectedWord.type} â€¢ {selectedWord.gender}</span>
                         <h3 className="text-2xl font-black mt-1">{selectedWord.lemma || selectedWord.word}</h3>
                         <p className="font-bold text-indigo-950">{selectedWord.meaning}</p>
                       </div>
@@ -253,18 +253,18 @@ export default function App() {
             )}
 
             <button onClick={() => completeReading(selectedReading.id, selectedReading.xp)} className="w-full bg-emerald-600 text-white font-bold py-3.5 rounded-xl flex justify-center items-center gap-2 cursor-pointer">
-              <CheckCircle className="w-5 h-5" /> {completedReadings.includes(selectedReading.id) ? '¡Lectura Completada!' : `Terminar lectura (+${selectedReading.xp} XP)`}
+              <CheckCircle className="w-5 h-5" /> {completedReadings.includes(selectedReading.id) ? 'Â¡Lectura Completada!' : `Terminar lectura (+${selectedReading.xp} XP)`}
             </button>
           </div>
         ) : activeTab === 'readings' ? (
           <div className="space-y-5">
             <div className="bg-indigo-600 text-white p-5 rounded-2xl shadow-md space-y-3">
-              <h2 className="font-extrabold flex items-center gap-2"><Sparkles className="w-5 h-5 text-amber-300" /> Generador Automático de Lecturas</h2>
+              <h2 className="font-extrabold flex items-center gap-2"><Sparkles className="w-5 h-5 text-amber-300" /> Generador AutomÃ¡tico de Lecturas</h2>
               <div className="flex flex-col sm:flex-row gap-2">
                 <select value={genLevel} onChange={e => setGenLevel(e.target.value)} className="bg-white text-slate-900 font-bold text-xs px-3 py-2.5 rounded-xl">
                   {['A1', 'A2', 'B1', 'B2', 'C1'].map(l => <option key={l} value={l}>Nivel {l}</option>)}
                 </select>
-                <input type="text" placeholder="Tema opcional (ej. Berlín, Fútbol)..." value={genTopic} onChange={e => setGenTopic(e.target.value)} className="flex-1 bg-white/15 placeholder-indigo-200 text-white text-xs px-3.5 py-2.5 rounded-xl border border-white/25" />
+                <input type="text" placeholder="Tema opcional (ej. BerlÃ­n, FÃºtbol)..." value={genTopic} onChange={e => setGenTopic(e.target.value)} className="flex-1 bg-white/15 placeholder-indigo-200 text-white text-xs px-3.5 py-2.5 rounded-xl border border-white/25" />
                 <button onClick={handleGenerateAIReading} disabled={isGeneratingReading} className="bg-amber-400 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl cursor-pointer">
                   {isGeneratingReading ? 'Creando...' : 'Generar'}
                 </button>
@@ -313,7 +313,7 @@ export default function App() {
         ) : (
           <div className="grid grid-cols-3 gap-3 text-center">
             <div className="bg-white p-4 rounded-2xl border"><p className="text-2xl font-black text-indigo-600">{xp}</p><p className="text-xs text-slate-500">XP</p></div>
-            <div className="bg-white p-4 rounded-2xl border"><p className="text-2xl font-black text-emerald-600">{completedReadings.length}</p><p className="text-xs text-slate-500">Leídos</p></div>
+            <div className="bg-white p-4 rounded-2xl border"><p className="text-2xl font-black text-emerald-600">{completedReadings.length}</p><p className="text-xs text-slate-500">LeÃ­dos</p></div>
             <div className="bg-white p-4 rounded-2xl border"><p className="text-2xl font-black text-amber-500">{Object.keys(dictionary).length}</p><p className="text-xs text-slate-500">Palabras</p></div>
           </div>
         )}
