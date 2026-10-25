@@ -7,11 +7,8 @@
   const prompt = body?.prompt;
   const apiKey = process.env.GEMINI_API_KEY || body?.apiKey;
 
-  if (!apiKey) {
-    return res.status(400).json({ error: 'Falta GEMINI_API_KEY en Vercel' });
-  }
-  if (!prompt) {
-    return res.status(400).json({ error: 'Falta el prompt en la peticion' });
+  if (!apiKey || !prompt) {
+    return res.status(400).json({ error: 'Falta API Key o prompt' });
   }
 
   const callModel = async (modelName) => {
@@ -23,7 +20,10 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: "application/json" }
+          generationConfig: { 
+            responseMimeType: "application/json",
+            temperature: 0.7
+          }
         })
       }
     );
@@ -32,10 +32,10 @@
   };
 
   try {
-    // 1. Intentar con el modelo recomendado actual (gemini-3.8-flash / gemini-3.0-flash)
-    let result = await callModel('gemini-3.8-flash');
+    // 1. Llamada directa sin espera al modelo real activo
+    let result = await callModel('gemini-2.0-flash');
 
-    // 2. Si Google cambia la versión, buscar automáticamente el modelo flash activo en la cuenta
+    // 2. Fallback solo en caso de emergencia futura
     if (!result.ok) {
       const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
       const listData = await listRes.json();
@@ -49,7 +49,7 @@
 
     if (!result.ok) {
       return res.status(result.status || 500).json({
-        error: result.data?.error?.message || 'Error en la respuesta de Google API'
+        error: result.data?.error?.message || 'Error en Google API'
       });
     }
 
